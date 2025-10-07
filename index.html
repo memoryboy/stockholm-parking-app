@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stockholm Park - Fungerar!</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .app-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .app-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+            border-radius: 20px 20px 0 0;
+        }
+
+        .app-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .current-time {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .current-location {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+
+        .app-main {
+            padding: 30px 20px;
+        }
+
+        .gps-status {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .gps-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f0f4ff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            color: #667eea;
+            font-weight: 500;
+        }
+
+        .gps-dot {
+            width: 8px;
+            height: 8px;
+            background: #4ade80;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .parking-status-container {
+            display: flex;
+            justify-content: center;
+            margin: 40px 0;
+        }
+
+        .parking-circle {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.5s ease;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .parking-circle.green {
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+            color: white;
+        }
+
+        .parking-circle.red {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .parking-circle.orange {
+            background: linear-gradient(135deg, #fb923c 0%, #f97316 100%);
+            color: white;
+        }
+
+        .parking-circle.gray {
+            background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+            color: white;
+        }
+
+        .parking-icon {
+            font-size: 60px;
+            margin-bottom: 10px;
+        }
+
+        .parking-text {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .parking-info {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .parking-rule {
+            font-size: 15px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 10px;
+        }
+
+        .parking-explanation {
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .refresh-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .coordinates {
+            font-size: 12px;
+            color: #9ca3af;
+            text-align: center;
+            margin-top: 15px;
+        }
+
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1 class="app-title">🅿️ Stockholm Park</h1>
+            <div class="current-time" id="currentTime">--:--</div>
+            <div class="current-location" id="currentLocation">Väntar på position...</div>
+        </header>
+
+        <main class="app-main">
+            <div class="gps-status">
+                <div class="gps-indicator">
+                    <span class="gps-dot"></span>
+                    <span id="gpsStatus">Hämtar position...</span>
+                </div>
+            </div>
+
+            <div id="errorContainer"></div>
+
+            <div class="parking-status-container">
+                <div class="parking-circle gray" id="parkingCircle">
+                    <div class="parking-icon" id="parkingIcon">⏳</div>
+                    <div class="parking-text" id="parkingText">LADDAR</div>
+                </div>
+            </div>
+
+            <div class="parking-info" id="parkingInfo" style="display: none;">
+                <div class="parking-rule" id="parkingRule"></div>
+                <div class="parking-explanation" id="parkingExplanation"></div>
+            </div>
+
+            <button class="refresh-btn" onclick="checkParking()">🔄 Uppdatera position</button>
+            <div class="coordinates" id="coordinates"></div>
+        </main>
+    </div>
+
+    <script>
+        window.addEventListener('load', () => {
+            updateTime();
+            setInterval(updateTime, 1000);
+            checkParking();
+        });
+
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = 
+                now.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        async function checkParking() {
+            showLoading();
+            clearError();
+
+            try {
+                const position = await getCurrentPosition();
+                const { latitude, longitude } = position.coords;
+
+                document.getElementById('coordinates').textContent = 
+                    `Lat: ${latitude.toFixed(6)}, Lng: ${longitude.toFixed(6)}`;
+                document.getElementById('gpsStatus').textContent = 'GPS Aktiv';
+
+                // Call our backend API
+                const response = await fetch(`/api/parking?lat=${latitude}&lng=${longitude}&radius=100`);
+                const data = await response.json();
+
+                displayParkingStatus(data, latitude, longitude);
+
+            } catch (error) {
+                showError(error.message);
+                showStatus('error');
+            }
+        }
+
+        function getCurrentPosition() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject(new Error('Din webbläsare stöder inte geolokalisering'));
+                    return;
+                }
+
+                navigator.geolocation.getCurrentPosition(resolve, (error) => {
+                    switch(error.code) {
+                        case 1:
+                            reject(new Error('Tillåt platsåtkomst i webbläsarens inställningar'));
+                            break;
+                        case 2:
+                            reject(new Error('GPS är inte tillgänglig'));
+                            break;
+                        default:
+                            reject(new Error('GPS-fel'));
+                    }
+                }, {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                });
+            });
+        }
+
+        function displayParkingStatus(data, lat, lng) {
+            getAddress(lat, lng);
+
+            if (!data.features || data.features.length === 0) {
+                showStatus('unknown');
+                document.getElementById('parkingRule').textContent = 
+                    'Inga parkeringsregler hittades';
+                document.getElementById('parkingExplanation').textContent = 
+                    'Kontrollera lokala skyltar';
+                document.getElementById('parkingInfo').style.display = 'block';
+                return;
+            }
+
+            showStatus('allowed');
+            document.getElementById('parkingRule').textContent = 
+                `${data.features.length} parkeringsregel(er) hittade`;
+            document.getElementById('parkingExplanation').textContent = 
+                'Parkeringsregler finns i området. Kontrollera skyltar för detaljer.';
+            document.getElementById('parkingInfo').style.display = 'block';
+        }
+
+        async function getAddress(lat, lng) {
+            try {
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18`,
+                    { headers: { 'User-Agent': 'StockholmParkApp/1.0' }}
+                );
+                const data = await response.json();
+                if (data.address) {
+                    document.getElementById('currentLocation').textContent = 
+                        data.address.road || 'Stockholm';
+                }
+            } catch (error) {
+                document.getElementById('currentLocation').textContent = 'Stockholm';
+            }
+        }
+
+        function showStatus(status) {
+            const circle = document.getElementById('parkingCircle');
+            const icon = document.getElementById('parkingIcon');
+            const text = document.getElementById('parkingText');
+
+            circle.className = 'parking-circle';
+            switch(status) {
+                case 'allowed':
+                    circle.classList.add('green');
+                    icon.textContent = '✓';
+                    text.textContent = 'TILLÅTET';
+                    break;
+                case 'forbidden':
+                    circle.classList.add('red');
+                    icon.textContent = '✕';
+                    text.textContent = 'FÖRBJUDET';
+                    break;
+                case 'limited':
+                    circle.classList.add('orange');
+                    icon.textContent = '⏰';
+                    text.textContent = 'BEGRÄNSAT';
+                    break;
+                case 'unknown':
+                    circle.classList.add('gray');
+                    icon.textContent = '?';
+                    text.textContent = 'OKÄNT';
+                    break;
+                case 'error':
+                    circle.classList.add('red');
+                    icon.textContent = '⚠️';
+                    text.textContent = 'FEL';
+                    break;
+            }
+        }
+
+        function showLoading() {
+            const circle = document.getElementById('parkingCircle');
+            circle.className = 'parking-circle gray';
+            document.getElementById('parkingIcon').textContent = '⏳';
+            document.getElementById('parkingText').textContent = 'LADDAR';
+            document.getElementById('parkingInfo').style.display = 'none';
+        }
+
+        function showError(message) {
+            document.getElementById('errorContainer').innerHTML = 
+                `<div class="error">❌ ${message}</div>`;
+        }
+
+        function clearError() {
+            document.getElementById('errorContainer').innerHTML = '';
+        }
+    </script>
+</body>
+</html>
