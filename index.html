@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stockholm Park</title>
+    <title>Stockholm Park v2.0</title>
     <style>
         * {
             margin: 0;
@@ -35,6 +35,18 @@
             padding: 30px 20px;
             text-align: center;
             border-radius: 20px 20px 0 0;
+            position: relative;
+        }
+
+        .version-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
         }
 
         .app-title {
@@ -254,11 +266,24 @@
         .hidden {
             display: none !important;
         }
+
+        .debug-box {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 11px;
+            color: #6b7280;
+            max-height: 200px;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body>
     <div class="app-container">
         <header class="app-header">
+            <div class="version-badge">v2.0 FIXED</div>
             <h1 class="app-title">🅿️ Stockholm Park</h1>
             <div class="current-time" id="currentTime">--:--</div>
             <div class="current-location" id="currentLocation">Väntar på position...</div>
@@ -274,10 +299,11 @@
 
             <div id="errorContainer"></div>
 
+            <!-- TIME REMAINING BOX - THIS IS NEW! -->
             <div class="time-remaining hidden" id="timeRemaining">
                 <div class="time-remaining-label">⏰ Tillåtet till</div>
-                <div class="time-remaining-value" id="timeRemainingValue">18:00</div>
-                <div class="time-remaining-subtext" id="timeRemainingSubtext">2 timmar 30 minuter kvar</div>
+                <div class="time-remaining-value" id="timeRemainingValue">--:--</div>
+                <div class="time-remaining-subtext" id="timeRemainingSubtext">Räknar...</div>
             </div>
 
             <div class="parking-status-container">
@@ -291,35 +317,50 @@
                 <div class="parking-rule" id="parkingRule"></div>
                 <div class="parking-explanation" id="parkingExplanation"></div>
 
+                <!-- DETAILED INFO - THIS IS NEW! -->
                 <div class="parking-details" id="parkingDetails">
                     <div class="parking-detail-item">
                         <span class="parking-detail-label">📅 Dagar:</span>
-                        <span class="parking-detail-value" id="detailDays">-</span>
+                        <span class="parking-detail-value" id="detailDays">Laddar...</span>
                     </div>
                     <div class="parking-detail-item">
                         <span class="parking-detail-label">🕐 Tid:</span>
-                        <span class="parking-detail-value" id="detailTime">-</span>
+                        <span class="parking-detail-value" id="detailTime">Laddar...</span>
                     </div>
                     <div class="parking-detail-item">
                         <span class="parking-detail-label">💰 Taxa:</span>
-                        <span class="parking-detail-value" id="detailTaxa">-</span>
+                        <span class="parking-detail-value" id="detailTaxa">Laddar...</span>
                     </div>
                     <div class="parking-detail-item">
                         <span class="parking-detail-label">⏱️ Max tid:</span>
-                        <span class="parking-detail-value" id="detailMaxTime">-</span>
+                        <span class="parking-detail-value" id="detailMaxTime">Laddar...</span>
                     </div>
                 </div>
             </div>
 
             <button class="refresh-btn" onclick="checkParking()">🔄 Uppdatera position</button>
             <div class="coordinates" id="coordinates"></div>
+
+            <!-- Debug info to verify we're getting data -->
+            <div class="debug-box" id="debugBox"></div>
         </main>
     </div>
 
     <script>
+        console.log('Stockholm Park App v2.0 - WITH TIME FEATURES');
+
         let parkingData = null;
+        let debugMessages = [];
+
+        function addDebug(msg) {
+            debugMessages.push(`${new Date().toLocaleTimeString()}: ${msg}`);
+            if (debugMessages.length > 10) debugMessages.shift();
+            document.getElementById('debugBox').textContent = debugMessages.join('\n');
+            console.log(msg);
+        }
 
         window.addEventListener('load', () => {
+            addDebug('App loaded - v2.0');
             updateTime();
             setInterval(updateTime, 1000);
             checkParking();
@@ -338,21 +379,26 @@
         async function checkParking() {
             showLoading();
             clearError();
+            addDebug('Starting parking check...');
 
             try {
                 const position = await getCurrentPosition();
                 const { latitude, longitude } = position.coords;
 
+                addDebug(`GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
                 document.getElementById('coordinates').textContent = 
                     `Lat: ${latitude.toFixed(6)}, Lng: ${longitude.toFixed(6)}`;
                 document.getElementById('gpsStatus').textContent = 'GPS Aktiv';
 
+                addDebug('Calling API...');
                 const response = await fetch(`/api/parking?lat=${latitude}&lng=${longitude}&radius=100`);
                 const data = await response.json();
 
+                addDebug(`API returned ${data.features ? data.features.length : 0} features`);
                 displayParkingStatus(data, latitude, longitude);
 
             } catch (error) {
+                addDebug(`ERROR: ${error.message}`);
                 showError(error.message);
                 showStatus('error');
             }
@@ -368,10 +414,10 @@
                 navigator.geolocation.getCurrentPosition(resolve, (error) => {
                     switch(error.code) {
                         case 1:
-                            reject(new Error('Tillåt platsåtkomst i webbläsarens inställningar'));
+                            reject(new Error('Tillåt platsåtkomst'));
                             break;
                         case 2:
-                            reject(new Error('GPS är inte tillgänglig'));
+                            reject(new Error('GPS ej tillgänglig'));
                             break;
                         default:
                             reject(new Error('GPS-fel'));
@@ -388,6 +434,7 @@
             getAddress(lat, lng);
 
             if (!data.features || data.features.length === 0) {
+                addDebug('No features found');
                 showStatus('unknown');
                 document.getElementById('parkingRule').textContent = 
                     'Inga parkeringsregler hittades';
@@ -398,10 +445,13 @@
                 return;
             }
 
-            // Use the parsed data from backend
-            const bestFeature = data.features[0];
-            const parsed = bestFeature.parsed || {};
-            const props = bestFeature.properties || {};
+            // Get the first feature and its parsed data
+            const feature = data.features[0];
+            const parsed = feature.parsed || {};
+            const props = feature.properties || {};
+
+            addDebug(`Parsed data: ${JSON.stringify(parsed)}`);
+            addDebug(`Properties: ${JSON.stringify(props).substring(0, 100)}...`);
 
             // Store parking data
             parkingData = {
@@ -421,21 +471,30 @@
 
             // Show time remaining if available
             if (parsed.timeUntil) {
+                addDebug(`Time until: ${parsed.timeUntil}`);
                 document.getElementById('timeRemainingValue').textContent = parsed.timeUntil;
                 updateTimeRemaining(parsed.timeUntil);
                 document.getElementById('timeRemaining').classList.remove('hidden');
             } else {
+                addDebug('No time limit found');
                 document.getElementById('timeRemaining').classList.add('hidden');
             }
 
             document.getElementById('parkingExplanation').textContent = 
-                `${data.features.length} parkeringsregel(er) hittade i området.`;
+                `${data.features.length} parkeringsregel(er) funna.`;
 
             // Fill detailed information with REAL API data
-            document.getElementById('detailDays').textContent = parsed.formattedDays || 'Alla dagar';
-            document.getElementById('detailTime').textContent = parsed.formattedTime || 'Hela dygnet';
-            document.getElementById('detailTaxa').textContent = parsed.taxa || 'Ingen avgift';
-            document.getElementById('detailMaxTime').textContent = parsed.maxTime || 'Ingen begränsning';
+            const days = parsed.formattedDays || props.DAGAR || props.dagar || 'Alla dagar';
+            const time = parsed.formattedTime || 'Hela dygnet';
+            const taxa = parsed.taxa || props.TAXA || props.taxa || 'Ingen avgift';
+            const maxTime = parsed.maxTime || props.MAX_TID || props.max_tid || 'Ingen begränsning';
+
+            addDebug(`Days: ${days}, Time: ${time}, Taxa: ${taxa}`);
+
+            document.getElementById('detailDays').textContent = days;
+            document.getElementById('detailTime').textContent = time;
+            document.getElementById('detailTaxa').textContent = taxa;
+            document.getElementById('detailMaxTime').textContent = maxTime;
 
             document.getElementById('parkingInfo').classList.remove('hidden');
         }
