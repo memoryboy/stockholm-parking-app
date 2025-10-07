@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stockholm Park - Fungerar!</title>
+    <title>Stockholm Park</title>
     <style>
         * {
             margin: 0;
@@ -274,7 +274,6 @@
 
             <div id="errorContainer"></div>
 
-            <!-- Time Remaining Alert -->
             <div class="time-remaining hidden" id="timeRemaining">
                 <div class="time-remaining-label">⏰ Tillåtet till</div>
                 <div class="time-remaining-value" id="timeRemainingValue">18:00</div>
@@ -292,7 +291,6 @@
                 <div class="parking-rule" id="parkingRule"></div>
                 <div class="parking-explanation" id="parkingExplanation"></div>
 
-                <!-- Detailed parking information -->
                 <div class="parking-details" id="parkingDetails">
                     <div class="parking-detail-item">
                         <span class="parking-detail-label">📅 Dagar:</span>
@@ -332,7 +330,6 @@
             document.getElementById('currentTime').textContent = 
                 now.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
 
-            // Update time remaining if parking data exists
             if (parkingData && parkingData.endTime) {
                 updateTimeRemaining(parkingData.endTime);
             }
@@ -395,106 +392,63 @@
                 document.getElementById('parkingRule').textContent = 
                     'Inga parkeringsregler hittades';
                 document.getElementById('parkingExplanation').textContent = 
-                    'Kontrollera lokala skyltar eller parkera på egen risk.';
+                    'Kontrollera lokala skyltar';
                 document.getElementById('parkingInfo').classList.remove('hidden');
                 document.getElementById('timeRemaining').classList.add('hidden');
                 return;
             }
 
-            // Parse parking regulations
-            const now = new Date();
-            const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
-            const currentTime = now.getHours() * 100 + now.getMinutes();
-
-            let bestRule = null;
-            let parkingAllowed = false;
-            let endTime = null;
-
-            // Analyze all rules to find the most relevant one
-            for (const feature of data.features) {
-                const props = feature.properties;
-
-                // Check if this rule applies now
-                if (props.TID_FRAN && props.TID_TILL) {
-                    const startTime = parseInt(props.TID_FRAN.replace(':', ''));
-                    const endTime = parseInt(props.TID_TILL.replace(':', ''));
-
-                    if (currentTime >= startTime && currentTime < endTime) {
-                        bestRule = props;
-                        parkingAllowed = true;
-                        break;
-                    }
-                }
-
-                // If no time restrictions, store as potential rule
-                if (!bestRule) {
-                    bestRule = props;
-                    parkingAllowed = true;
-                }
-            }
-
-            if (!bestRule) {
-                bestRule = data.features[0].properties;
-            }
-
-            // Calculate end time
-            if (bestRule.TID_TILL) {
-                endTime = bestRule.TID_TILL;
-            }
+            // Use the parsed data from backend
+            const bestFeature = data.features[0];
+            const parsed = bestFeature.parsed || {};
+            const props = bestFeature.properties || {};
 
             // Store parking data
             parkingData = {
-                allowed: parkingAllowed,
-                endTime: endTime,
-                rule: bestRule
+                allowed: parsed.isCurrentlyAllowed !== false,
+                endTime: parsed.timeUntil,
+                rule: props
             };
 
             // Display status
-            if (parkingAllowed) {
+            if (parkingData.allowed) {
                 showStatus('allowed');
-
-                // Show time remaining if applicable
-                if (endTime) {
-                    document.getElementById('timeRemainingValue').textContent = endTime;
-                    updateTimeRemaining(endTime);
-                    document.getElementById('timeRemaining').classList.remove('hidden');
-                } else {
-                    document.getElementById('timeRemaining').classList.add('hidden');
-                }
+                document.getElementById('parkingRule').textContent = 'Parkering tillåten här';
             } else {
                 showStatus('forbidden');
-                document.getElementById('timeRemaining').classList.add('hidden');
+                document.getElementById('parkingRule').textContent = 'Parkering kan vara begränsad';
             }
 
-            // Fill in details
-            document.getElementById('parkingRule').textContent = 
-                parkingAllowed ? 'Parkering tillåten här' : 'Parkering kan vara begränsad';
+            // Show time remaining if available
+            if (parsed.timeUntil) {
+                document.getElementById('timeRemainingValue').textContent = parsed.timeUntil;
+                updateTimeRemaining(parsed.timeUntil);
+                document.getElementById('timeRemaining').classList.remove('hidden');
+            } else {
+                document.getElementById('timeRemaining').classList.add('hidden');
+            }
 
             document.getElementById('parkingExplanation').textContent = 
                 `${data.features.length} parkeringsregel(er) hittade i området.`;
 
-            // Fill detailed information
-            document.getElementById('detailDays').textContent = 
-                bestRule.DAGAR || 'Alla dagar';
-            document.getElementById('detailTime').textContent = 
-                bestRule.TID_FRAN && bestRule.TID_TILL ? 
-                `${bestRule.TID_FRAN} - ${bestRule.TID_TILL}` : 'Hela dygnet';
-            document.getElementById('detailTaxa').textContent = 
-                bestRule.TAXA ? `Taxa ${bestRule.TAXA}` : 'Ingen avgift';
-            document.getElementById('detailMaxTime').textContent = 
-                bestRule.MAX_TID || 'Ingen begränsning';
+            // Fill detailed information with REAL API data
+            document.getElementById('detailDays').textContent = parsed.formattedDays || 'Alla dagar';
+            document.getElementById('detailTime').textContent = parsed.formattedTime || 'Hela dygnet';
+            document.getElementById('detailTaxa').textContent = parsed.taxa || 'Ingen avgift';
+            document.getElementById('detailMaxTime').textContent = parsed.maxTime || 'Ingen begränsning';
 
             document.getElementById('parkingInfo').classList.remove('hidden');
         }
 
         function updateTimeRemaining(endTimeStr) {
+            if (!endTimeStr) return;
+
             const now = new Date();
             const [endHour, endMinute] = endTimeStr.split(':').map(Number);
 
             const endTime = new Date();
             endTime.setHours(endHour, endMinute, 0, 0);
 
-            // If end time is before current time, it means tomorrow
             if (endTime < now) {
                 endTime.setDate(endTime.getDate() + 1);
             }
