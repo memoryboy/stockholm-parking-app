@@ -1,197 +1,165 @@
+
 <!DOCTYPE html>
 <html lang="sv">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Stockholm Park</title>
-<style>
-/* ... same styles as before ... */
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Stockholm Park · v2.2</title>
+  <style>
+    :root{
+      --bg1:#6536ff;--bg2:#8a2be2;--card:#ffffff;--ink:#111827;--muted:#6b7280;
+      --ok1:#22c55e;--ok2:#16a34a;--err1:#ef4444;--err2:#dc2626;--warn1:#f59e0b;--warn2:#d97706;
+      --brand1:#667eea;--brand2:#764ba2;--line:#e5e7eb;--sky:#e0f2fe;--skyline:#bae6fd;
+    }
+    *{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(135deg,var(--bg1),var(--bg2));min-height:100vh;display:flex;align-items:center;justify-content:center;padding:18px}
+    .app{width:100%;max-width:420px;background:var(--card);border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden}
+    header{background:linear-gradient(135deg,var(--brand1),var(--brand2));color:#fff;padding:22px;text-align:center;position:relative}
+    header .badge{position:absolute;right:10px;top:10px;font-size:11px;background:rgba(255,255,255,.18);padding:4px 8px;border-radius:6px}
+    h1{margin:0 0 6px 0;font-weight:800;letter-spacing:.2px}
+    .when{opacity:.95;font-weight:600}
+    .where{opacity:.9;font-size:13px}
+    main{padding:22px}
+    .status-pill{display:flex;align-items:center;gap:8px;justify-content:center;background:#eef2ff;color:#312e81;border-radius:999px;padding:8px 14px;font-weight:600}
+    .circle{margin:28px auto;width:200px;height:200px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 12px 28px rgba(0,0,0,.18);color:#fff}
+    .circle.ok{background:linear-gradient(135deg,var(--ok1),var(--ok2))}
+    .circle.err{background:linear-gradient(135deg,var(--err1),var(--err2))}
+    .circle.warn{background:linear-gradient(135deg,var(--warn1),var(--warn2))}
+    .circle.neutral{background:linear-gradient(135deg,#9ca3af,#6b7280)}
+    .circle .icon{font-size:56px;margin-bottom:6px}
+    .circle .lbl{font-weight:800;letter-spacing:1px}
+    .timebox{display:none;margin-bottom:18px;border-radius:14px;background:linear-gradient(135deg,var(--warn1),var(--warn2));color:#fff;padding:14px;text-align:center;box-shadow:0 8px 20px rgba(217,119,6,.35)}
+    .timebox .ttl{font-size:12px;opacity:.9;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px}
+    .timebox .val{font-size:22px;font-weight:800}
+    .timebox .sub{font-size:12px;opacity:.95;margin-top:4px}
+    .card{background:#f9fafb;border-radius:14px;padding:16px;margin-bottom:18px}
+    .card h3{margin:0 0 8px 0;font-size:16px}
+    .kv{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+    .kv:last-child{border-bottom:none}
+    .kv .k{color:#64748b;font-weight:600}
+    .kv .v{color:#111827;font-weight:700}
+    .btn{width:100%;padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--brand1),var(--brand2));color:#fff;font-weight:800;letter-spacing:.3px;cursor:pointer}
+    .muted{margin-top:10px;text-align:center;color:#6b7280;font-size:12px}
+    .errbox{display:none;background:#fee2e2;color:#991b1b;border-radius:10px;padding:12px;margin-bottom:12px}
+    .debug{margin-top:12px;background:#f3f4f6;border:1px dashed #d1d5db;border-radius:10px;padding:10px;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;white-space:pre-wrap;max-height:140px;overflow:auto}
+  </style>
 </head>
 <body>
-<div class="app-container">
-  <header class="app-header">
-    <h1 class="app-title">🅿️ Stockholm Park</h1>
-    <div class="current-time" id="currentTime">--:--</div>
-    <div class="current-location" id="currentLocation">Väntar på position...</div>
-  </header>
-  <main class="app-main">
-    <div class="gps-status">
-      <div class="gps-indicator">
-        <span class="gps-dot"></span><span id="gpsStatus">Hämtar position...</span>
+  <div class="app">
+    <header>
+      <div class="badge">v2.2</div>
+      <h1>🅿️ Stockholm Park</h1>
+      <div class="when" id="now">--:--</div>
+      <div class="where" id="where">Hämtar adress…</div>
+    </header>
+    <main>
+      <div class="status-pill" id="gpsPill"><span>📡</span><span id="gpsTxt">Hämtar position…</span></div>
+
+      <div class="errbox" id="err"></div>
+
+      <div class="timebox" id="timeBox">
+        <div class="ttl">Tillåtet till</div>
+        <div class="val" id="tillVal">--:--</div>
+        <div class="sub" id="tillSub">—</div>
       </div>
-    </div>
-    <div id="errorContainer"></div>
-    <div class="time-remaining hidden" id="timeRemaining">
-      <div class="time-remaining-label">⏰ Tillåtet till</div>
-      <div class="time-remaining-value" id="timeRemainingValue">--:--</div>
-      <div class="time-remaining-subtext" id="timeRemainingSubtext">Räknar...</div>
-    </div>
-    <div class="parking-status-container">
-      <div class="parking-circle gray" id="parkingCircle">
-        <div class="parking-icon" id="parkingIcon">⏳</div>
-        <div class="parking-text" id="parkingText">LADDAR</div>
+
+      <div class="circle neutral" id="circle">
+        <div class="icon" id="cIcon">⏳</div>
+        <div class="lbl" id="cLbl">LADDAR</div>
       </div>
-    </div>
-    <div class="parking-info hidden" id="parkingInfo">
-      <div class="parking-rule" id="parkingRule"></div>
-      <div class="parking-explanation" id="parkingExplanation"></div>
-      <div class="parking-details">
-        <div class="parking-detail-item">
-          <span class="parking-detail-label">📅 Dagar:</span>
-          <span class="parking-detail-value" id="detailDays">-</span>
-        </div>
-        <div class="parking-detail-item">
-          <span class="parking-detail-label">🕐 Tid:</span>
-          <span class="parking-detail-value" id="detailTime">-</span>
-        </div>
-        <div class="parking-detail-item">
-          <span class="parking-detail-label">💰 Taxa:</span>
-          <span class="parking-detail-value" id="detailTaxa">-</span>
-        </div>
-        <div class="parking-detail-item">
-          <span class="parking-detail-label">⏱️ Max tid:</span>
-          <span class="parking-detail-value" id="detailMaxTime">-</span>
-        </div>
+
+      <div class="card">
+        <h3>Parkering</h3>
+        <div class="kv"><div class="k">📅 Dagar</div><div class="v" id="vDays">—</div></div>
+        <div class="kv"><div class="k">🕐 Tid</div><div class="v" id="vTime">—</div></div>
+        <div class="kv"><div class="k">💰 Taxa</div><div class="v" id="vTaxa">—</div></div>
+        <div class="kv"><div class="k">⏱️ Max tid</div><div class="v" id="vMax">—</div></div>
       </div>
-    </div>
-    <button class="refresh-btn" onclick="checkParking()">🔄 Uppdatera position</button>
-    <div class="coordinates" id="coordinates"></div>
-  </main>
-</div>
-<script>
-let parkingData = null;
-window.addEventListener("load", () => {
-  updateTime();
-  setInterval(updateTime, 1000);
-  checkParking();
-});
-function updateTime() {
-  const now = new Date();
-  document.getElementById("currentTime").textContent = now.toLocaleTimeString("sv-SE",{hour:"2-digit",minute:"2-digit"});
-  if (parkingData && parkingData.endTime) {
-    updateTimeRemaining(parkingData.endTime);
-  }
-}
-async function checkParking() {
-  showLoading();
-  clearError();
-  try {
-    const position = await getCurrentPosition();
-    const { latitude, longitude } = position.coords;
-    document.getElementById("coordinates").textContent = `Lat: ${latitude.toFixed(6)}, Lng: ${longitude.toFixed(6)}`;
-    document.getElementById("gpsStatus").textContent = "GPS Aktiv";
-    await getAddress(latitude, longitude);
-    const response = await fetch(`/api/parking?lat=${latitude}&lng=${longitude}&radius=100`);
-    const data = await response.json();
-    displayParkingStatus(data);
-  } catch (err) {
-    showError(err.message);
-    showStatus("error");
-  }
-}
-function getCurrentPosition() {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error("Din webbläsare stöder inte geolokalisering"));
-      return;
+
+      <button class="btn" onclick="run()">🔄 Uppdatera</button>
+      <div class="muted" id="coords">—</div>
+      <div class="debug" id="dbg"></div>
+    </main>
+  </div>
+
+  <script>
+    const E = id => document.getElementById(id);
+    const log = msg => { const d=E('dbg'); d.textContent += `\n${new Date().toLocaleTimeString()} · ${msg}`; d.scrollTop=d.scrollHeight; };
+
+    function setCircle(kind, text){
+      const c = E('circle'); c.className='circle ' + (kind||'neutral');
+      E('cLbl').textContent = text;
+      E('cIcon').textContent = kind==='ok'?'✓': kind==='err'?'✕': kind==='warn'?'⏰':'⏳';
     }
-    navigator.geolocation.getCurrentPosition(resolve, (error) => {
-      reject(new Error(error.code === 1 ? "Tillåt platsåtkomst" : "GPS ej tillgänglig"));
-    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
-  });
-}
-function displayParkingStatus(data) {
-  if (!data.features || data.features.length === 0) {
-    showStatus("unknown");
-    document.getElementById("parkingRule").textContent = "Inga parkeringsregler hittades";
-    document.getElementById("parkingExplanation").textContent = "Kontrollera lokala skyltar";
-    document.getElementById("parkingInfo").classList.remove("hidden");
-    document.getElementById("timeRemaining").classList.add("hidden");
-    return;
-  }
-  const feature = data.features[0];
-  const parsed = feature.parsed || {};
-  parkingData = { allowed: parsed.isCurrentlyAllowed !== false, endTime: parsed.timeUntil };
-  showStatus(parkingData.allowed ? "allowed" : "forbidden");
-  document.getElementById("parkingRule").textContent = parkingData.allowed ? "Parkering tillåten här" : "Parkering kan vara begränsad";
-  if (parsed.timeUntil) {
-    document.getElementById("timeRemainingValue").textContent = parsed.timeUntil;
-    updateTimeRemaining(parsed.timeUntil);
-    document.getElementById("timeRemaining").classList.remove("hidden");
-  } else {
-    document.getElementById("timeRemaining").classList.add("hidden");
-  }
-  document.getElementById("parkingExplanation").textContent = `${data.features.length} parkeringsregel(er) funna.`;
-  document.getElementById("detailDays").textContent = parsed.formattedDays || "Alla dagar";
-  document.getElementById("detailTime").textContent = parsed.formattedTime || "Hela dygnet";
-  document.getElementById("detailTaxa").textContent = parsed.taxa || "Ingen avgift";
-  document.getElementById("detailMaxTime").textContent = parsed.maxTime || "Ingen begränsning";
-  document.getElementById("parkingInfo").classList.remove("hidden");
-}
-function updateTimeRemaining(endTimeStr) {
-  if (!endTimeStr) return;
-  const now = new Date();
-  const [endHour, endMinute] = endTimeStr.split(":").map(Number);
-  const endTime = new Date();
-  endTime.setHours(endHour, endMinute, 0, 0);
-  if (endTime < now) endTime.setDate(endTime.getDate() + 1);
-  const diffMs = endTime - now;
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-  document.getElementById("timeRemainingSubtext").textContent =
-    diffHours > 0 ? `${diffHours} timmar ${diffMinutes} minuter kvar` :
-    diffMinutes > 0 ? `${diffMinutes} minuter kvar` : "Tiden går snart ut!";
-}
-async function getAddress(lat, lng) {
-  try {
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-      { headers: { "User-Agent": "StockholmParkApp/2.0", "Accept-Language": "sv" } }
-    );
-    const data = await response.json();
-    if (data.address) {
-      const street = data.address.road || data.address.neighbourhood || null;
-      const city = data.address.city || data.address.municipality || "Stockholm";
-      document.getElementById("currentLocation").textContent = street ? `${street}, ${city}` : city;
+
+    function showErr(msg){ const box=E('err'); box.style.display='block'; box.textContent = '❌ ' + msg; }
+    function clearErr(){ const box=E('err'); box.style.display='none'; box.textContent=''; }
+
+    function tickNow(){ E('now').textContent = new Date().toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'}); }
+    setInterval(tickNow,1000); tickNow();
+
+    async function run(){
+      clearErr(); setCircle('neutral','LADDAR'); E('gpsTxt').textContent='Hämtar position…'; E('timeBox').style.display='none';
+      try{
+        const pos = await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true,timeout:15000,maximumAge:0}));
+        const {latitude:lat, longitude:lng} = pos.coords;
+        E('coords').textContent = `Lat ${lat.toFixed(6)}, Lng ${lng.toFixed(6)}`;
+        E('gpsTxt').textContent='GPS aktiv';
+        log(`GPS ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+
+        // reverse geocode (best effort)
+        try{
+          const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,{headers:{'User-Agent':'StockholmPark/2.2','Accept-Language':'sv'}});
+          const j = await r.json();
+          const a = j.address||{}; const street=a.road||a.pedestrian||a.footway||a.neighbourhood||''; const city=a.city||a.town||a.municipality||'Stockholm';
+          E('where').textContent = street? `${street}, ${city}` : city;
+        }catch{ E('where').textContent = `${lat.toFixed(4)}, ${lng.toFixed(4)}`; }
+
+        // call backend
+        const resp = await fetch(`/api/parking?lat=${lat}&lng=${lng}&radius=120`);
+        if(!resp.ok){ throw new Error('API-fel ' + resp.status); }
+        const data = await resp.json();
+        log(`API features: ${data.features?data.features.length:0}`);
+        E('dbg').textContent += `\nSample: ` + JSON.stringify(data.features?.[0]?.properties||{},null,0).slice(0,240);
+
+        if(!data.features || !data.features.length){
+          setCircle('warn','OKÄNT'); E('vDays').textContent='—'; E('vTime').textContent='—'; E('vTaxa').textContent='—'; E('vMax').textContent='—'; return; }
+
+        // choose best rule: prefer ones with explicit times or taxa
+        const scored = data.features.map(f=>{
+          const p=f.properties||{}; const score=(p.TID_TILL?3:0)+(p.TID_FRAN?2:0)+(p.TAXA?1:0); return {f,score};
+        }).sort((a,b)=>b.score-a.score);
+        const best = (scored[0]||{}).f || data.features[0];
+        const props = best.properties||{}; const parsed = best.parsed||{};
+
+        const days = parsed.formattedDays || props.DAGAR || '—';
+        const timeFrom = props.TID_FRAN || '';
+        const timeTill = props.TID_TILL || '';
+        const timeStr = parsed.formattedTime || (timeFrom||timeTill? `${timeFrom||'—'} - ${timeTill||'—'}` : 'Hela dygnet');
+        const taxa = parsed.taxa || (props.TAXA? `Taxa ${props.TAXA}`:'Ingen avgift');
+        const maxT = parsed.maxTime || props.MAX_TID || 'Ingen begränsning';
+
+        // display values
+        E('vDays').textContent = days; E('vTime').textContent = timeStr; E('vTaxa').textContent = taxa; E('vMax').textContent = maxT;
+
+        // allowed / time left
+        const now = new Date();
+        let allowed = parsed.isCurrentlyAllowed; if(allowed===undefined){
+          if(timeFrom && timeTill){ const cur=now.getHours()*100+now.getMinutes(); const s=parseInt(timeFrom.replace(':','')); const e=parseInt(timeTill.replace(':','')); allowed = (cur>=s && cur<e); } else { allowed=true; }
+        }
+        if(allowed){ setCircle('ok','TILLÅTET'); } else { setCircle('err','FÖRBJUDET'); }
+
+        if(timeTill){
+          E('timeBox').style.display='block';
+          E('tillVal').textContent = timeTill;
+          // countdown
+          const end = new Date(); const [hh,mm]=timeTill.split(':').map(Number); end.setHours(hh,mm,0,0); if(end<now) end.setDate(end.getDate()+1);
+          const ms=end-now; const h=Math.floor(ms/3.6e6); const m=Math.floor((ms%3.6e6)/6e4); E('tillSub').textContent = (h>0?`${h} h `:'')+`${m} min kvar`;
+        }
+      }catch(e){ showErr(e.message||'Något gick fel'); setCircle('err','FEL'); log('ERROR '+e); }
     }
-  } catch {
-    document.getElementById("currentLocation").textContent = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-  }
-}
-function showStatus(status) {
-  const circle = document.getElementById("parkingCircle");
-  const icon = document.getElementById("parkingIcon");
-  const text = document.getElementById("parkingText");
-  circle.className = "parking-circle";
-  if (status === "allowed") {
-    circle.classList.add("green");
-    icon.textContent = "✓";
-    text.textContent = "TILLÅTET";
-  } else if (status === "forbidden") {
-    circle.classList.add("red");
-    icon.textContent = "✕";
-    text.textContent = "FÖRBJUDET";
-  } else {
-    circle.classList.add("gray");
-    icon.textContent = "?";
-    text.textContent = "OKÄNT";
-  }
-}
-function showLoading() {
-  document.getElementById("parkingCircle").className = "parking-circle gray";
-  document.getElementById("parkingIcon").textContent = "⏳";
-  document.getElementById("parkingText").textContent = "LADDAR";
-  document.getElementById("parkingInfo").classList.add("hidden");
-  document.getElementById("timeRemaining").classList.add("hidden");
-  document.getElementById("currentLocation").textContent = "Hämtar adress...";
-}
-function showError(msg) {
-  document.getElementById("errorContainer").innerHTML = `<div class=\"error\">❌ ${msg}</div>`;
-}
-function clearError() {
-  document.getElementById("errorContainer").innerHTML = "";
-}
-</script>
+
+    // auto-run
+    if('geolocation' in navigator){ run(); } else { showErr('Din webbläsare stöder inte plats'); }
+  </script>
 </body>
 </html>
