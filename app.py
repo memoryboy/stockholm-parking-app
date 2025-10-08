@@ -20,10 +20,10 @@ def get_parking():
     lat = request.args.get('lat')
     lng = request.args.get('lng')
     radius = request.args.get('radius', 100)
-
+    
     if not lat or not lng:
         return jsonify({'error': 'Missing lat/lng parameters'}), 400
-
+    
     try:
         url = f'{API_BASE}/ptillaten/within'
         params = {
@@ -33,23 +33,23 @@ def get_parking():
             'outputFormat': 'json',
             'apiKey': API_KEY
         }
-
+        
         print(f"Calling Stockholm API: {url}")
         response = requests.get(url, params=params, timeout=10)
         print(f"API Response status: {response.status_code}")
-
+        
         if response.status_code == 200:
             data = response.json()
             print(f"API returned {len(data.get('features', []))} features")
-
+            
             # Parse and enrich the data with real information
             if 'features' in data and len(data['features']) > 0:
                 now = datetime.now()
-
+                
                 for i, feature in enumerate(data['features']):
                     props = feature.get('properties', {})
                     print(f"Feature {i} properties: {props}")
-
+                    
                     # Parse the real data from Stockholm API
                     feature['parsed'] = {
                         'isCurrentlyAllowed': check_if_currently_allowed(props, now),
@@ -60,12 +60,12 @@ def get_parking():
                         'maxTime': extract_max_time(props)
                     }
                     print(f"Parsed data: {feature['parsed']}")
-
+            
             return jsonify(data)
         else:
             print(f"API error: {response.text}")
             return jsonify({'error': f'API error: {response.status_code}'}), 500
-
+            
     except Exception as e:
         print(f"Exception: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -74,10 +74,10 @@ def check_if_currently_allowed(props, now):
     """Check if parking is currently allowed"""
     time_from = props.get('TID_FRAN') or props.get('tid_fran')
     time_to = props.get('TID_TILL') or props.get('tid_till')
-
+    
     if not time_from or not time_to:
         return True
-
+    
     try:
         current_time = now.hour * 100 + now.minute
         start_time = int(time_from.replace(':', ''))
@@ -99,7 +99,7 @@ def format_time_range(props):
     """Format time range"""
     time_from = props.get('TID_FRAN') or props.get('tid_fran')
     time_to = props.get('TID_TILL') or props.get('tid_till')
-
+    
     if time_from and time_to:
         return f'{time_from} - {time_to}'
     return 'Hela dygnet'
